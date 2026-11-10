@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#14171c">
+<title>Avidemux Móvil</title>
+<style>
+  :root{--bg:#14171c;--card:#1d2229;--line:#2c333d;--tx:#e8ecf1;--mut:#8f9aa8;--ac:#3ea6ff;--ok:#38c172;--bad:#ef5350}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.45 system-ui,Roboto,sans-serif;padding:0 16px 40px}
+  header{padding:18px 0 8px}
+  h1{font-size:1.3rem;margin:0}
+  header p{margin:2px 0 0;color:var(--mut);font-size:.85rem}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:12px 0}
+  .card h2{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin:0 0 10px}
+  button,select,input[type=text]{font:inherit;color:var(--tx);background:#262d36;border:1px solid var(--line);border-radius:10px;padding:12px;min-height:48px}
+  button{cursor:pointer}
+  button.pri{background:var(--ac);color:#04121f;border:0;font-weight:700;width:100%}
+  button:disabled{opacity:.45}
+  select,input[type=text]{width:100%}
+  label{display:block;font-size:.85rem;color:var(--mut);margin:10px 0 4px}
+  video{width:100%;max-height:42vh;background:#000;border-radius:10px;display:block}
+  .row{display:flex;gap:8px}.row>*{flex:1;min-width:0}
+  .file{display:block;text-align:center;border:2px dashed var(--line);border-radius:12px;padding:22px 10px;color:var(--mut)}
+  .file input{display:none}
+  .file b{color:var(--tx)}
+  .bar{height:12px;background:#262d36;border-radius:8px;overflow:hidden;margin-top:10px}
+  .bar i{display:block;height:100%;width:0;background:var(--ac);transition:width .2s}
+  #estado{font-size:.9rem;color:var(--mut);margin-top:8px;min-height:1.3em;word-break:break-word}
+  #estado.ok{color:var(--ok)}#estado.err{color:var(--bad)}
+  a.dl{display:block;text-align:center;text-decoration:none;background:var(--ok);color:#04210f;font-weight:700;border-radius:10px;padding:14px;margin-top:10px}
+  details summary{color:var(--mut);font-size:.85rem;cursor:pointer;padding:6px 0}
+  pre{white-space:pre-wrap;word-break:break-all;font-size:.7rem;max-height:200px;overflow:auto;color:var(--mut);margin:0}
+  .hint{font-size:.8rem;color:var(--mut);margin-top:6px}
+  .hide{display:none}
+  .item{display:flex;gap:6px;align-items:center;background:#262d36;border-radius:10px;padding:8px;margin-bottom:6px}
+  .item .info{flex:1;min-width:0;font-size:.85rem;word-break:break-all}
+  .item small{color:var(--mut)}
+  .item button{min-height:40px;padding:6px 12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎞️ Avidemux Móvil</h1>
+  <p>Editor de video en español. Usa los codificadores de tu teléfono; nada se sube a internet.</p>
+</header>
+
+<div class="card" id="panelArchivo">
+  <h2>1 · Elegir video</h2>
+  <label class="file">
+    <input type="file" id="archivo" accept="video/*,audio/*">
+    <span id="nombreArchivo">Toca aquí para elegir un video<br><b>de tu galería o archivos</b></span>
+  </label>
+  <video id="vista" controls playsinline class="hide" style="margin-top:12px"></video>
+</div>
+
+<div class="card">
+  <h2>2 · ¿Qué querés hacer?</h2>
+  <select id="accion">
+    <option value="cortar_rapido">✂️ Cortar (rápido)</option>
+    <option value="cortar_recod">✂️ Cortar y recodificar a MP4</option>
+    <option value="convertir">🔄 Convertir a MP4 (H.264)</option>
+    <option value="unir">🔗 Unir varios videos (iguala la resolución)</option>
+    <option value="reducir">📐 Cambiar resolución / reducir tamaño</option>
+    <option value="audio">🎵 Extraer audio (M4A)</option>
+    <option value="silenciar">🔇 Quitar el audio</option>
+    <option value="rotar">↻ Rotar</option>
+  </select>
+
+  <div id="bloqueTiempo">
+    <label>Inicio (hh:mm:ss.d)</label>
+    <div class="row">
+      <input type="text" id="ini" value="00:00:00.0" inputmode="decimal">
+      <button id="marcaIni" type="button">📍 Marcar aquí</button>
+    </div>
+    <label>Fin (vacío = hasta el final)</label>
+    <div class="row">
+      <input type="text" id="fin" value="" inputmode="decimal" placeholder="hasta el final">
+      <button id="marcaFin" type="button">📍 Marcar aquí</button>
+    </div>
+    <p class="hint">Mové el video hasta el punto deseado y tocá “Marcar aquí”.</p>
+  </div>
+
+  <div id="bloqueRes" class="hide">
+    <label>Altura del video</label>
+    <select id="altura">
+      <option value="1080">1080p</option>
+      <option value="720">720p</option>
+      <option value="480" selected>480p</option>
+      <option value="360">360p</option>
+      <option value="240">240p</option>
+    </select>
+  </div>
+  <div id="bloqueRot" class="hide">
+    <label>Sentido</label>
+    <select id="sentido">
+      <option value="90">90° a la derecha</option>
+      <option value="270">90° a la izquierda</option>
+      <option value="180">180°</option>
+    </select>
+  </div>
+
+  <div id="bloqueUnir" class="hide">
+    <label class="file" style="margin-top:6px"><input type="file" id="archivosUnir" accept="video/*" multiple><span>➕ <b>Agregar videos</b> a la lista<br>(podés elegir varios a la vez)</span></label>
+    <div id="listaUnir" style="margin-top:10px"></div>
+    <div id="avisoUnir" class="hint">Agregá al menos 2 videos.</div>
+    <label>Resolución final</label>
+    <select id="resUnir">
+      <option value="primero">Igual a la del primer video</option>
+      <option value="mayor">La del video más grande</option>
+      <option value="1080">1080p</option>
+      <option value="720">720p</option>
+      <option value="480">480p</option>
+      <option value="360">360p</option>
+    </select>
+    <p class="hint">Si las resoluciones son distintas, cada video se ajusta sin deformarse y se rellena con barras negras. Si alguno no tiene audio, se le agrega silencio. La unión siempre recodifica.</p>
+  </div>
+</div>
+
+<div class="card">
+  <h2>3 · Procesar</h2>
+  <button class="pri" id="ejecutar" disabled>▶ Procesar video</button>
+  <div class="bar"><i id="barra"></i></div>
+  <div id="estado">Cargando motor de video…</div>
+  <div id="resultado" class="hide">
+    <video id="vistaOut" controls playsinline style="margin-top:12px"></video>
+    <a id="descarga" class="dl" download>⬇ Guardar en el teléfono</a>
+  </div>
+  <details style="margin-top:10px"><summary>Registro técnico</summary><pre id="log"></pre></details>
+</div>
+
+<p class="hint" style="text-align:center">Consejo: cerrá otras pestañas y aplicaciones antes de procesar. El video resultante se arma en la memoria del teléfono, así que conviene usar archivos de hasta ~500 MB.</p>
+
+<script type="module">
+const $ = id => document.getElementById(id);
+const estado = $('estado'), barra = $('barra'), logEl = $('log');
+let M = null, listo = false, archivo = null, urlIn = null, urlOut = null, ocupado = false, lista = [];
+
+const log = t => { logEl.textContent += t + '\n'; logEl.scrollTop = logEl.scrollHeight; };
+function msg(t, cls){ estado.textContent = t; estado.className = cls || ''; }
+const progreso = p => { p = Math.max(0, Math.min(1, p || 0)); barra.style.width = (p*100).toFixed(0) + '%'; msg('Procesando… ' + (p*100).toFixed(0) + '%'); };
+
+// ---- Tiempo ----
+function aSeg(t){
+  t = (t||'').trim().replace(',', '.'); if(!t) return null;
+  const p = t.split(':').map(Number); if(p.some(isNaN)) return NaN;
+  return p.reduce((s, x) => s*60 + x, 0);
+}
+function aTxt(s){
+  const h = Math.floor(s/3600), m = Math.floor(s%3600/60), x = s%60;
+  return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+x.toFixed(1).padStart(4,'0');
+}
+const par = n => Math.max(2, Math.round(n/2)*2);
+const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+// ---- Cargar la librería (con respaldo) ----
+const FUENTES = [
+  'https://cdn.jsdelivr.net/npm/mediabunny@1.61.3/dist/bundles/mediabunny.min.mjs',
+  'https://esm.sh/mediabunny@1.61.3',
+  'https://cdn.jsdelivr.net/npm/mediabunny@1.61.3/+esm'
+];
+async function cargarMotor(){
+  if(typeof VideoEncoder === 'undefined' || typeof VideoDecoder === 'undefined'){
+    msg('Este navegador no tiene los codificadores de video necesarios. Abrí la página en Chrome y actualizalo desde Play Store.', 'err'); return;
+  }
+  for(const u of FUENTES){
+    try{ M = await import(u); listo = true; msg('Motor listo. Elegí un video para empezar.'); actualizarBoton(); return; }
+    catch(e){ log('Falló ' + u + ': ' + (e && e.message)); }
+  }
+  msg('No se pudo cargar el motor. Revisá tu conexión a internet y recargá la página.', 'err');
+}
+
+function actualizarBoton(){
+  const unir = $('accion').value === 'unir';
+  $('ejecutar').disabled = !(listo && !ocupado && (unir ? lista.length >= 2 : archivo));
+}
+
+// ---- Elegir archivo ----
+$('archivo').addEventListener('change', e => {
+  const f = e.target.files[0]; if(!f) return;
+  archivo = f;
+  $('nombreArchivo').innerHTML = '<b>' + esc(f.name) + '</b><br>' + (f.size/1048576).toFixed(1) + ' MB · tocá para cambiar';
+  if(urlIn) URL.revokeObjectURL(urlIn);
+  urlIn = URL.createObjectURL(f);
+  const v = $('vista'); v.src = urlIn; v.classList.remove('hide');
+  $('ini').value = '00:00:00.0'; $('fin').value = '';
+  if(listo) msg('Video cargado. Elegí la acción y tocá Procesar.');
+  actualizarBoton();
+});
+$('marcaIni').onclick = () => { $('ini').value = aTxt($('vista').currentTime); };
+$('marcaFin').onclick = () => { $('fin').value = aTxt($('vista').currentTime); };
+
+function refrescarOpciones(){
+  const a = $('accion').value;
+  $('bloqueTiempo').classList.toggle('hide', !['cortar_rapido','cortar_recod','audio'].includes(a));
+  $('bloqueRes').classList.toggle('hide', a !== 'reducir');
+  $('bloqueRot').classList.toggle('hide', a !== 'rotar');
+  $('bloqueUnir').classList.toggle('hide', a !== 'unir');
+  $('panelArchivo').classList.toggle('hide', a === 'unir');
+  actualizarBoton();
+}
+$('accion').onchange = refrescarOpciones;
+
+// ---- Mostrar resultado ----
+function mostrar(buffer, nombre, mime){
+  if(!buffer || !buffer.byteLength) throw new Error('El resultado quedó vacío.');
+  if(urlOut) URL.revokeObjectURL(urlOut);
+  urlOut = URL.createObjectURL(new Blob([buffer], {type: mime}));
+  const dl = $('descarga'); dl.href = urlOut; dl.download = nombre;
+  $('vistaOut').src = urlOut; $('resultado').classList.remove('hide');
+  barra.style.width = '100%';
+  msg('¡Listo! ' + (buffer.byteLength/1048576).toFixed(1) + ' MB · ' + nombre, 'ok');
+}
+
+// ---- Una sola operación ----
+async function operacion(a){
+  const ini = aSeg($('ini').value) || 0, fin = aSeg($('fin').value);
+  if(isNaN(ini) || isNaN(fin)){ throw new Error('Tiempo inválido. Usá el formato hh:mm:ss.d'); }
+  if(fin !== null && fin <= ini){ throw new Error('El fin debe ser mayor que el inicio.'); }
+  const trim = {start: ini}; if(fin !== null) trim.end = fin;
+  const v = $('vista');
+  let opts = {}, mime = 'video/mp4', ext = 'mp4';
+  switch(a){
+    case 'cortar_rapido': opts = {trim}; break;
+    case 'cortar_recod':  opts = {trim, video: {codec: 'avc', forceTranscode: true}}; break;
+    case 'convertir':     opts = {video: {codec: 'avc'}, audio: {codec: 'aac'}}; break;
+    case 'reducir': {
+      const H = +$('altura').value, sw = v.videoWidth || 16, sh = v.videoHeight || 9;
+      opts = {video: {codec: 'avc', width: par(H*sw/sh), height: par(H), fit: 'fill'}}; break; }
+    case 'audio': opts = {trim, video: {discard: true}}; mime = 'audio/mp4'; ext = 'm4a'; break;
+    case 'silenciar': opts = {audio: {discard: true}}; break;
+    case 'rotar': opts = {video: {codec: 'avc', rotate: +$('sentido').value}}; break;
+  }
+  const input = new M.Input({source: new M.BlobSource(archivo), formats: M.ALL_FORMATS});
+  const output = new M.Output({format: new M.Mp4OutputFormat(), target: new M.BufferTarget()});
+  const conv = await M.Conversion.init({input, output, ...opts});
+  if(!conv.isValid){
+    throw new Error('Este teléfono no puede hacer esa conversión (' + (conv.discardedTracks || []).map(d => d.reason).join(', ') + ')');
+  }
+  conv.onProgress = progreso;
+  await conv.execute();
+  const base = archivo.name.replace(/\.[^.]+$/, '');
+  mostrar(output.target.buffer, base + '_editado.' + ext, mime);
+}
+
+// ================= UNIR VIDEOS =================
+function meta(file){
+  return new Promise(res => {
+    const v = document.createElement('video'), u = URL.createObjectURL(file);
+    const fin = m => { URL.revokeObjectURL(u); res(m); };
+    v.preload = 'metadata';
+    v.onloadedmetadata = () => fin({w: v.videoWidth, h: v.videoHeight, dur: v.duration || 0});
+    v.onerror = () => fin({w: 0, h: 0, dur: 0});
+    setTimeout(() => fin({w: 0, h: 0, dur: 0}), 8000);
+    v.src = u;
+  });
+}
+$('archivosUnir').addEventListener('change', async e => {
+  const fs = [...e.target.files]; e.target.value = '';
+  for(const f of fs){ lista.push({file: f, ...(await meta(f))}); }
+  pintarLista();
+});
+function pintarLista(){
+  const ul = $('listaUnir'); ul.innerHTML = '';
+  lista.forEach((it, i) => {
+    const li = document.createElement('div'); li.className = 'item';
+    li.innerHTML = '<div class="info"><b>' + (i+1) + '. ' + esc(it.file.name) + '</b><br><small>' +
+      (it.w ? it.w + '×' + it.h : 'resolución ?') + ' · ' + (it.dur ? aTxt(it.dur) : '?') + ' · ' +
+      (it.file.size/1048576).toFixed(1) + ' MB</small></div>';
+    const b = (t, fn, dis) => { const x = document.createElement('button'); x.type = 'button'; x.textContent = t; x.disabled = !!dis; x.onclick = fn; li.appendChild(x); };
+    b('↑', () => { [lista[i-1], lista[i]] = [lista[i], lista[i-1]]; pintarLista(); }, i === 0);
+    b('↓', () => { [lista[i+1], lista[i]] = [lista[i], lista[i+1]]; pintarLista(); }, i === lista.length-1);
+    b('✕', () => { lista.splice(i, 1); pintarLista(); });
+    ul.appendChild(li);
+  });
+  const res = [...new Set(lista.filter(x => x.w).map(x => x.w + '×' + x.h))];
+  $('avisoUnir').textContent = lista.length < 2 ? 'Agregá al menos 2 videos.'
+    : res.length > 1 ? '⚠ Resoluciones distintas (' + res.join(', ') + '): se van a igualar automáticamente.'
+    : 'Todos tienen la misma resolución.';
+  actualizarBoton();
+}
+function destino(){
+  const v = $('resUnir').value, con = lista.filter(x => x.w);
+  if(!con.length) return [1280, 720];
+  if(v === 'primero') return [par(con[0].w), par(con[0].h)];
+  if(v === 'mayor'){ const m = con.reduce((a, b) => b.w*b.h > a.w*a.h ? b : a); return [par(m.w), par(m.h)]; }
+  const H = +v, L = par(H*16/9);
+  return con[0].h > con[0].w ? [par(H), L] : [L, par(H)];
+}
+
+const SR = 48000;
+async function aEstereo48(buf){
+  if(buf.sampleRate === SR && buf.numberOfChannels === 2) return buf;
+  const ctx = new OfflineAudioContext(2, Math.max(1, Math.ceil(buf.duration*SR)), SR);
+  const s = ctx.createBufferSource(); s.buffer = buf; s.connect(ctx.destination); s.start();
+  return ctx.startRendering();
+}
+const silencio = seg => new AudioBuffer({length: Math.max(1, Math.round(seg*SR)), numberOfChannels: 2, sampleRate: SR});
+
+async function unirVideos(){
+  const [W, H] = destino();
+  const clips = [];
+  for(const it of lista){
+    const input = new M.Input({source: new M.BlobSource(it.file), formats: M.ALL_FORMATS});
+    const vt = await input.getPrimaryVideoTrack();
+    if(!vt) throw new Error('"' + it.file.name + '" no tiene video que se pueda leer.');
+    const at = await input.getPrimaryAudioTrack();
+    let dur = it.dur;
+    try{ dur = await vt.computeDuration(); }catch(_){}
+    if(!dur) throw new Error('No se pudo medir la duración de "' + it.file.name + '".');
+    clips.push({vt, at, dur});
+  }
+  const total = clips.reduce((s, c) => s + c.dur, 0);
+
+  const output = new M.Output({format: new M.Mp4OutputFormat(), target: new M.BufferTarget()});
+  const lienzo = document.createElement('canvas'); lienzo.width = W; lienzo.height = H;
+  const ctx = lienzo.getContext('2d');
+  const vsrc = new M.CanvasSource(lienzo, {codec: 'avc', quality: M.QUALITY_HIGH});
+  const asrc = new M.AudioBufferSource({codec: 'aac', quality: M.QUALITY_HIGH});
+  output.addVideoTrack(vsrc);
+  output.addAudioTrack(asrc);
+  await output.start();
+
+  let hecho = 0;
+  const video = async () => {
+    let off = 0;
+    for(const c of clips){
+      const sink = new M.CanvasSink(c.vt);
+      for await (const {canvas, timestamp, duration} of sink.canvases()){
+        if(timestamp >= c.dur) break;
+        ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+        const k = Math.min(W/canvas.width, H/canvas.height), w = canvas.width*k, h = canvas.height*k;
+        ctx.drawImage(canvas, (W-w)/2, (H-h)/2, w, h);
+        await vsrc.add(off + timestamp, duration);
+        hecho = off + timestamp; progreso(hecho/total);
+      }
+      off += c.dur;
+    }
+    vsrc.close();
+  };
+  const audio = async () => {
+    for(const c of clips){
+      let cubierto = 0;
+      if(c.at){
+        const sink = new M.AudioBufferSink(c.at);
+        for await (const {buffer, timestamp} of sink.buffers(0, c.dur)){
+          const b = await aEstereo48(buffer);
+          if(timestamp > cubierto + 0.01){ await asrc.add(silencio(timestamp - cubierto)); }
+          await asrc.add(b); cubierto = timestamp + b.duration;
+        }
+      }
+      if(cubierto < c.dur - 0.005) await asrc.add(silencio(c.dur - cubierto));
+    }
+    asrc.close();
+  };
+  await Promise.all([video(), audio()]);
+  await output.finalize();
+  mostrar(output.target.buffer, 'videos_unidos.mp4', 'video/mp4');
+}
+
+// ---- Botón procesar ----
+$('ejecutar').onclick = async () => {
+  if(!listo || ocupado) return;
+  ocupado = true; actualizarBoton();
+  $('resultado').classList.add('hide'); barra.style.width = '0'; msg('Preparando…');
+  try{
+    const a = $('accion').value;
+    if(a === 'unir') await unirVideos(); else await operacion(a);
+  }catch(e){
+    log(String(e && e.stack || e));
+    msg('Error: ' + ((e && e.message) || e) + '. Si es por memoria, cerrá otras pestañas o probá con videos más cortos.', 'err');
+  }finally{
+    ocupado = false; actualizarBoton();
+  }
+};
+
+refrescarOpciones();
+cargarMotor();
+</script>
+</body>
+</html>
