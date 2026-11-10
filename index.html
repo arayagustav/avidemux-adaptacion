@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#14171c">
+<title>Avidemux Móvil</title>
+<style>
+  :root{--bg:#14171c;--card:#1d2229;--line:#2c333d;--tx:#e8ecf1;--mut:#8f9aa8;--ac:#3ea6ff;--ok:#38c172;--bad:#ef5350}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.45 system-ui,Roboto,sans-serif;padding:0 16px 40px}
+  header{padding:18px 0 8px}
+  h1{font-size:1.3rem;margin:0}
+  header p{margin:2px 0 0;color:var(--mut);font-size:.85rem}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:12px 0}
+  .card h2{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin:0 0 10px}
+  button,select,input[type=text]{font:inherit;color:var(--tx);background:#262d36;border:1px solid var(--line);border-radius:10px;padding:12px;min-height:48px}
+  button{cursor:pointer}
+  button.pri{background:var(--ac);color:#04121f;border:0;font-weight:700;width:100%}
+  button:disabled{opacity:.45}
+  select,input[type=text]{width:100%}
+  label{display:block;font-size:.85rem;color:var(--mut);margin:10px 0 4px}
+  video{width:100%;max-height:42vh;background:#000;border-radius:10px;display:block}
+  .row{display:flex;gap:8px}.row>*{flex:1;min-width:0}
+  .file{display:block;text-align:center;border:2px dashed var(--line);border-radius:12px;padding:22px 10px;color:var(--mut)}
+  .file input{display:none}
+  .file b{color:var(--tx)}
+  .bar{height:12px;background:#262d36;border-radius:8px;overflow:hidden;margin-top:10px}
+  .bar i{display:block;height:100%;width:0;background:var(--ac);transition:width .2s}
+  #estado{font-size:.9rem;color:var(--mut);margin-top:8px;min-height:1.3em}
+  #estado.ok{color:var(--ok)}#estado.err{color:var(--bad)}
+  a.dl{display:block;text-align:center;text-decoration:none;background:var(--ok);color:#04210f;font-weight:700;border-radius:10px;padding:14px;margin-top:10px}
+  details summary{color:var(--mut);font-size:.85rem;cursor:pointer;padding:6px 0}
+  pre{white-space:pre-wrap;word-break:break-all;font-size:.7rem;max-height:200px;overflow:auto;color:var(--mut);margin:0}
+  .hint{font-size:.8rem;color:var(--mut);margin-top:6px}
+  .hide{display:none}
+  .item{display:flex;gap:6px;align-items:center;background:#262d36;border-radius:10px;padding:8px;margin-bottom:6px}
+  .item .info{flex:1;min-width:0;font-size:.85rem;word-break:break-all}
+  .item small{color:var(--mut)}
+  .item button{min-height:40px;padding:6px 12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎞️ Avidemux Móvil</h1>
+  <p>Editor de video en español. Todo se procesa en tu teléfono, nada se sube a internet.</p>
+</header>
+
+<div class="card" id="panelArchivo">
+  <h2>1 · Elegir video</h2>
+  <label class="file">
+    <input type="file" id="archivo" accept="video/*,audio/*">
+    <span id="nombreArchivo">Toca aquí para elegir un video<br><b>de tu galería o archivos</b></span>
+  </label>
+  <video id="vista" controls playsinline class="hide" style="margin-top:12px"></video>
+</div>
+
+<div class="card" id="panelOp">
+  <h2>2 · ¿Qué querés hacer?</h2>
+  <select id="accion">
+    <option value="cortar_rapido">✂️ Cortar (rápido, sin perder calidad)</option>
+    <option value="cortar_recod">✂️ Cortar y recodificar a MP4</option>
+    <option value="convertir">🔄 Convertir a MP4 (H.264)</option>
+    <option value="unir">🔗 Unir varios videos (iguala la resolución)</option>
+    <option value="reducir">📐 Cambiar resolución / reducir tamaño</option>
+    <option value="audio">🎵 Extraer audio (MP3)</option>
+    <option value="silenciar">🔇 Quitar el audio</option>
+    <option value="rotar">↻ Rotar 90°</option>
+  </select>
+
+  <div id="bloqueTiempo">
+    <label>Inicio (hh:mm:ss.d)</label>
+    <div class="row">
+      <input type="text" id="ini" value="00:00:00.0" inputmode="decimal">
+      <button id="marcaIni" type="button">📍 Marcar aquí</button>
+    </div>
+    <label>Fin (vacío = hasta el final)</label>
+    <div class="row">
+      <input type="text" id="fin" value="" inputmode="decimal" placeholder="hasta el final">
+      <button id="marcaFin" type="button">📍 Marcar aquí</button>
+    </div>
+    <p class="hint">Mové el video hasta el punto deseado y tocá “Marcar aquí”.</p>
+  </div>
+
+  <div id="bloqueRes" class="hide">
+    <label>Altura del video</label>
+    <select id="altura">
+      <option value="1080">1080p</option>
+      <option value="720">720p</option>
+      <option value="480" selected>480p</option>
+      <option value="360">360p</option>
+      <option value="240">240p</option>
+    </select>
+  </div>
+  <div id="bloqueUnir" class="hide">
+    <label class="file" style="margin-top:6px"><input type="file" id="archivosUnir" accept="video/*" multiple><span>➕ <b>Agregar videos</b> a la lista<br>(podés elegir varios a la vez)</span></label>
+    <div id="listaUnir" style="margin-top:10px"></div>
+    <div id="avisoUnir" class="hint">Agregá al menos 2 videos.</div>
+    <label>Resolución final</label>
+    <select id="resUnir">
+      <option value="primero">Igual a la del primer video</option>
+      <option value="mayor">La del video más grande</option>
+      <option value="1080">1080p</option>
+      <option value="720">720p</option>
+      <option value="480">480p</option>
+      <option value="360">360p</option>
+    </select>
+    <label style="display:flex;gap:8px;align-items:center;color:var(--tx)"><input type="checkbox" id="copiaUnir" style="width:22px;height:22px"> Unir sin recodificar (solo si todos son idénticos: mismo códec, resolución y fps)</label>
+    <p class="hint">Si las resoluciones son distintas, cada video se escala sin deformarse y se rellena con barras negras. Si alguno no tiene audio, se le agrega silencio.</p>
+  </div>
+  <div id="bloqueRot" class="hide">
+    <label>Sentido</label>
+    <select id="sentido">
+      <option value="transpose=1">90° a la derecha</option>
+      <option value="transpose=2">90° a la izquierda</option>
+      <option value="transpose=1,transpose=1">180°</option>
+    </select>
+  </div>
+</div>
+
+<div class="card">
+  <h2>3 · Procesar</h2>
+  <button class="pri" id="ejecutar" disabled>▶ Procesar video</button>
+  <div class="bar"><i id="barra"></i></div>
+  <div id="estado">Cargando motor de video… (la primera vez baja ~25 MB)</div>
+  <div id="resultado" class="hide">
+    <video id="vistaOut" controls playsinline style="margin-top:12px"></video>
+    <a id="descarga" class="dl" download>⬇ Guardar en el teléfono</a>
+  </div>
+  <details style="margin-top:10px"><summary>Registro técnico</summary><pre id="log"></pre></details>
+</div>
+
+<p class="hint" style="text-align:center">Consejo: en un Galaxy J6 usá videos de hasta ~300 MB. Los cortes “sin perder calidad” son casi instantáneos; recodificar es más lento y gasta batería.</p>
+
+<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const estado = $('estado'), barra = $('barra'), logEl = $('log');
+  let ffmpeg = null, listo = false, archivo = null, urlIn = null, urlOut = null, ocupado = false;
+  let lista = [], capt = null;
+
+  function msg(t, cls){ estado.textContent = t; estado.className = cls || ''; }
+
+  // ---- Utilidades de tiempo ----
+  function aSeg(t){
+    t = (t||'').trim().replace(',', '.');
+    if(!t) return null;
+    const p = t.split(':').map(Number);
+    if(p.some(isNaN)) return NaN;
+    let s = 0; for(const x of p) s = s*60 + x;
+    return s;
+  }
+  function aTxt(s){
+    const h = Math.floor(s/3600), m = Math.floor(s%3600/60), x = s%60;
+    return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+x.toFixed(1).padStart(4,'0');
+  }
+
+  // ---- Motor ffmpeg.wasm ----
+  async function cargarMotor(){
+    if(typeof FFmpeg === 'undefined'){
+      msg('No se pudo cargar el motor. Revisá tu conexión a internet y recargá la página.', 'err'); return;
+    }
+    try{
+      ffmpeg = FFmpeg.createFFmpeg({
+        log: true,
+        corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+      });
+      ffmpeg.setLogger(({message}) => { if(capt) capt.push(message); logEl.textContent += message + '\n'; logEl.scrollTop = logEl.scrollHeight; });
+      ffmpeg.setProgress(({ratio}) => {
+        if(ratio >= 0 && ratio <= 1){ barra.style.width = (ratio*100).toFixed(0)+'%'; msg('Procesando… '+(ratio*100).toFixed(0)+'%'); }
+      });
+      await ffmpeg.load();
+      listo = true;
+      msg('Motor listo. Elegí un video para empezar.');
+      actualizarBoton();
+    }catch(e){
+      msg('Error al cargar el motor: ' + e.message, 'err');
+    }
+  }
+
+  function actualizarBoton(){
+    const unir = $('accion') && $('accion').value === 'unir';
+    $('ejecutar').disabled = !(listo && !ocupado && (unir ? lista.length >= 2 : archivo));
+  }
+
+  // ---- Elegir archivo ----
+  $('archivo').addEventListener('change', e => {
+    const f = e.target.files[0]; if(!f) return;
+    archivo = f;
+    $('nombreArchivo').innerHTML = '<b>' + f.name.replace(/</g,'&lt;') + '</b><br>' + (f.size/1048576).toFixed(1) + ' MB · tocá para cambiar';
+    if(urlIn) URL.revokeObjectURL(urlIn);
+    urlIn = URL.createObjectURL(f);
+    const v = $('vista'); v.src = urlIn; v.classList.remove('hide');
+    $('ini').value = '00:00:00.0'; $('fin').value = '';
+    if(f.size > 350*1048576) msg('Atención: archivo grande (' + (f.size/1048576).toFixed(0) + ' MB). Puede quedarse sin memoria en este teléfono.', 'err');
+    else if(listo) msg('Video cargado. Elegí la acción y tocá Procesar.');
+    actualizarBoton();
+  });
+
+  $('marcaIni').onclick = () => { $('ini').value = aTxt($('vista').currentTime); };
+  $('marcaFin').onclick = () => { $('fin').value = aTxt($('vista').currentTime); };
+
+  // ---- Mostrar opciones según la acción ----
+  function refrescarOpciones(){
+    const a = $('accion').value;
+    $('bloqueTiempo').classList.toggle('hide', !['cortar_rapido','cortar_recod','audio'].includes(a));
+    $('bloqueRes').classList.toggle('hide', a !== 'reducir');
+    $('bloqueRot').classList.toggle('hide', a !== 'rotar');
+    $('bloqueUnir').classList.toggle('hide', a !== 'unir');
+    $('panelArchivo').classList.toggle('hide', a === 'unir');
+    actualizarBoton();
+  }
+  $('accion').onchange = refrescarOpciones; refrescarOpciones();
+
+  // ---- Procesar ----
+  const X264 = ['-c:v','libx264','-preset','ultrafast','-crf','26','-pix_fmt','yuv420p','-c:a','aac','-b:a','128k'];
+
+  $('ejecutar').onclick = async () => {
+    const a = $('accion').value;
+    if(a === 'unir') return unirVideos();
+    if(!listo || !archivo || ocupado) return;
+    const ini = aSeg($('ini').value) || 0, fin = aSeg($('fin').value);
+    if(isNaN(ini) || isNaN(fin)){ msg('Tiempo inválido. Usá el formato hh:mm:ss.d', 'err'); return; }
+    if(fin !== null && fin <= ini){ msg('El fin debe ser mayor que el inicio.', 'err'); return; }
+
+    const ext = (archivo.name.split('.').pop() || 'mp4').toLowerCase().replace(/[^a-z0-9]/g,'') || 'mp4';
+    const entrada = 'entrada.' + ext;
+    const tiempo = [];
+    if(['cortar_rapido','cortar_recod','audio'].includes(a)){
+      if(ini > 0) tiempo.push('-ss', String(ini));
+      if(fin !== null) tiempo.push('-t', String(fin - ini));
+    }
+    let args, salida, mime;
+    switch(a){
+      case 'cortar_rapido': salida = 'salida.' + ext; mime = archivo.type || 'video/mp4';
+        args = [...tiempo, '-i', entrada, '-c', 'copy', '-avoid_negative_ts', 'make_zero', salida]; break;
+      case 'cortar_recod': salida = 'salida.mp4'; mime = 'video/mp4';
+        args = [...tiempo, '-i', entrada, ...X264, salida]; break;
+      case 'convertir': salida = 'salida.mp4'; mime = 'video/mp4';
+        args = ['-i', entrada, ...X264, salida]; break;
+      case 'reducir': salida = 'salida.mp4'; mime = 'video/mp4';
+        args = ['-i', entrada, '-vf', 'scale=-2:' + $('altura').value, ...X264.map(x => x==='26' ? '30' : x), salida]; break;
+      case 'audio': salida = 'salida.mp3'; mime = 'audio/mpeg';
+        args = [...tiempo, '-i', entrada, '-vn', '-c:a', 'libmp3lame', '-b:a', '192k', salida]; break;
+      case 'silenciar': salida = 'salida.' + ext; mime = archivo.type || 'video/mp4';
+        args = ['-i', entrada, '-an', '-c:v', 'copy', salida]; break;
+      case 'rotar': salida = 'salida.mp4'; mime = 'video/mp4';
+        args = ['-i', entrada, '-vf', $('sentido').value, ...X264, salida]; break;
+    }
+
+    ocupado = true; actualizarBoton();
+    $('resultado').classList.add('hide'); logEl.textContent = ''; barra.style.width = '0';
+    try{
+      msg('Leyendo el archivo en memoria…');
+      ffmpeg.FS('writeFile', entrada, await FFmpeg.fetchFile(archivo));
+      msg('Procesando…');
+      await ffmpeg.run(...args);
+      const datos = ffmpeg.FS('readFile', salida);
+      if(!datos.length) throw new Error('El resultado quedó vacío.');
+      if(urlOut) URL.revokeObjectURL(urlOut);
+      urlOut = URL.createObjectURL(new Blob([datos.buffer], {type: mime}));
+      const base = archivo.name.replace(/\.[^.]+$/, '');
+      const nombre = base + '_editado.' + salida.split('.').pop();
+      const dl = $('descarga'); dl.href = urlOut; dl.download = nombre;
+      const vo = $('vistaOut'); vo.src = urlOut;
+      $('resultado').classList.remove('hide');
+      barra.style.width = '100%';
+      msg('¡Listo! ' + (datos.length/1048576).toFixed(1) + ' MB · ' + nombre, 'ok');
+    }catch(e){
+      msg('Error: ' + (e.message || e) + '. Si es por memoria, probá con un video más corto.', 'err');
+    }finally{
+      try{ ffmpeg.FS('unlink', entrada); }catch(_){}
+      try{ ffmpeg.FS('unlink', salida); }catch(_){}
+      ocupado = false; actualizarBoton();
+    }
+  };
+
+  // ================= UNIR VIDEOS =================
+  function meta(file){
+    return new Promise(res => {
+      const v = document.createElement('video'), u = URL.createObjectURL(file);
+      const fin = m => { URL.revokeObjectURL(u); res(m); };
+      v.preload = 'metadata';
+      v.onloadedmetadata = () => fin({w: v.videoWidth, h: v.videoHeight, dur: v.duration || 0});
+      v.onerror = () => fin({w: 0, h: 0, dur: 0});
+      setTimeout(() => fin({w: 0, h: 0, dur: 0}), 8000);
+      v.src = u;
+    });
+  }
+  const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+  $('archivosUnir').addEventListener('change', async e => {
+    const fs = [...e.target.files]; e.target.value = '';
+    for(const f of fs){ lista.push({file: f, ...(await meta(f))}); }
+    pintarLista();
+  });
+
+  function pintarLista(){
+    const ul = $('listaUnir'); ul.innerHTML = '';
+    lista.forEach((it, i) => {
+      const li = document.createElement('div'); li.className = 'item';
+      li.innerHTML = '<div class="info"><b>' + (i+1) + '. ' + esc(it.file.name) + '</b><br><small>' +
+        (it.w ? it.w + '×' + it.h : 'resolución ?') + ' · ' + (it.dur ? aTxt(it.dur) : '?') + ' · ' +
+        (it.file.size/1048576).toFixed(1) + ' MB</small></div>';
+      const b = (t, fn, dis) => { const x = document.createElement('button'); x.type = 'button'; x.textContent = t; x.disabled = !!dis; x.onclick = fn; li.appendChild(x); };
+      b('↑', () => { [lista[i-1], lista[i]] = [lista[i], lista[i-1]]; pintarLista(); }, i === 0);
+      b('↓', () => { [lista[i+1], lista[i]] = [lista[i], lista[i+1]]; pintarLista(); }, i === lista.length-1);
+      b('✕', () => { lista.splice(i, 1); pintarLista(); });
+      ul.appendChild(li);
+    });
+    const res = [...new Set(lista.filter(x => x.w).map(x => x.w + '×' + x.h))];
+    $('avisoUnir').textContent = lista.length < 2 ? 'Agregá al menos 2 videos.'
+      : res.length > 1 ? '⚠ Resoluciones distintas (' + res.join(', ') + '): se van a igualar automáticamente.'
+      : 'Todos tienen la misma resolución.';
+    actualizarBoton();
+  }
+
+  function destino(){
+    const v = $('resUnir').value, con = lista.filter(x => x.w);
+    const par = n => Math.max(2, Math.round(n/2)*2);
+    if(!con.length) return [1280, 720];
+    if(v === 'primero') return [par(con[0].w), par(con[0].h)];
+    if(v === 'mayor'){ const m = con.reduce((a, b) => b.w*b.h > a.w*a.h ? b : a); return [par(m.w), par(m.h)]; }
+    const H = +v, L = par(H*16/9);
+    return con[0].h > con[0].w ? [par(H), L] : [L, par(H)];
+  }
+
+  async function tieneAudio(nombre){
+    capt = [];
+    try{ await ffmpeg.run('-i', nombre, '-t', '0.1', '-f', 'null', '-'); }catch(_){}
+    const t = capt.join('\n'); capt = null;
+    return /Stream #\d+:\d+.*Audio:/.test(t);
+  }
+
+  async function unirVideos(){
+    if(!listo || ocupado || lista.length < 2) return;
+    ocupado = true; actualizarBoton();
+    $('resultado').classList.add('hide'); logEl.textContent = ''; barra.style.width = '0';
+    const nombres = []; let salida = 'salida.mp4';
+    try{
+      const total = lista.reduce((s, x) => s + x.file.size, 0);
+      if(total > 400*1048576) throw new Error('La suma de los videos (' + (total/1048576).toFixed(0) + ' MB) es demasiado grande para la memoria del teléfono');
+      for(let i = 0; i < lista.length; i++){
+        msg('Leyendo video ' + (i+1) + ' de ' + lista.length + '…');
+        const ext = (lista[i].file.name.split('.').pop() || 'mp4').toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4';
+        const n = 'in' + i + '.' + ext; nombres.push(n);
+        ffmpeg.FS('writeFile', n, await FFmpeg.fetchFile(lista[i].file));
+      }
+      let args;
+      if($('copiaUnir').checked){
+        salida = 'salida.' + nombres[0].split('.').pop();
+        ffmpeg.FS('writeFile', 'lista.txt', new TextEncoder().encode(nombres.map(n => "file '" + n + "'").join('\n') + '\n'));
+        args = ['-f', 'concat', '-safe', '0', '-i', 'lista.txt', '-c', 'copy', salida];
+      }else{
+        const audio = [];
+        for(let i = 0; i < nombres.length; i++){ msg('Analizando video ' + (i+1) + '…'); audio[i] = await tieneAudio(nombres[i]); }
+        const [W, H] = destino();
+        const ins = [], fc = [], par = []; let k = nombres.length;
+        nombres.forEach(n => ins.push('-i', n));
+        lista.forEach((it, i) => {
+          fc.push('[' + i + ':v:0]scale=' + W + ':' + H + ':force_original_aspect_ratio=decrease,pad=' + W + ':' + H +
+                  ':(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v' + i + ']');
+          let src = i;
+          if(!audio[i]){ ins.push('-f', 'lavfi', '-t', String(it.dur || 1), '-i', 'anullsrc=r=44100:cl=stereo'); src = k++; }
+          fc.push('[' + src + ':a:0]aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a' + i + ']');
+          par.push('[v' + i + '][a' + i + ']');
+        });
+        fc.push(par.join('') + 'concat=n=' + lista.length + ':v=1:a=1[v][a]');
+        args = [...ins, '-filter_complex', fc.join(';'), '-map', '[v]', '-map', '[a]', ...X264, salida];
+        msg('Uniendo a ' + W + '×' + H + '…');
+      }
+      await ffmpeg.run(...args);
+      const datos = ffmpeg.FS('readFile', salida);
+      if(!datos.length) throw new Error('El resultado quedó vacío.');
+      if(urlOut) URL.revokeObjectURL(urlOut);
+      urlOut = URL.createObjectURL(new Blob([datos.buffer], {type: 'video/mp4'}));
+      const nombre = 'videos_unidos.' + salida.split('.').pop();
+      const dl = $('descarga'); dl.href = urlOut; dl.download = nombre;
+      $('vistaOut').src = urlOut; $('resultado').classList.remove('hide');
+      barra.style.width = '100%';
+      msg('¡Listo! ' + (datos.length/1048576).toFixed(1) + ' MB · ' + nombre, 'ok');
+    }catch(e){
+      msg('Error: ' + (e.message || e) + '. Si es por memoria, probá con menos videos o más cortos.', 'err');
+    }finally{
+      [...nombres, 'lista.txt', salida].forEach(n => { try{ ffmpeg.FS('unlink', n); }catch(_){} });
+      ocupado = false; actualizarBoton();
+    }
+  }
+
+  cargarMotor();
+})();
+</script>
+</body>
+</html>
